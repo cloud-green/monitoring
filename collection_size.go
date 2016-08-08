@@ -110,20 +110,38 @@ func (u *CollectionSizeCollector) Describe(c chan<- *prometheus.Desc) {
 
 // Collect implements the prometheus.Collector interface.
 func (u *CollectionSizeCollector) Collect(ch chan<- prometheus.Metric) {
+	fail := func() {
+		mSize, err := prometheus.NewConstMetric(u.sizeDesc, prometheus.GaugeValue, float64(0))
+		if err != nil {
+			log.Errorf("failed to report %v collection stats: %v", u.collectionName, err)
+			return
+		}
+		mCount, err := prometheus.NewConstMetric(u.countDesc, prometheus.GaugeValue, float64(0))
+		if err != nil {
+			log.Errorf("failed to report %v collection stats: %v", u.collectionName, err)
+			return
+		}
+		ch <- mSize
+		ch <- mCount
+	}
+
 	stats, err := u.statsGetter.Get(u.database, u.collectionName)
 	if err != nil {
 		log.Errorf("failed to report %v collection stats: %v", u.collectionName, err)
+		fail()
 		return
 	}
 
 	mSize, err := prometheus.NewConstMetric(u.sizeDesc, prometheus.GaugeValue, float64(stats.Size))
 	if err != nil {
 		log.Errorf("failed to report %v collection stats: %v", u.collectionName, err)
+		fail()
 		return
 	}
 	mCount, err := prometheus.NewConstMetric(u.countDesc, prometheus.GaugeValue, float64(stats.Count))
 	if err != nil {
 		log.Errorf("failed to report %v collection stats: %v", u.collectionName, err)
+		fail()
 		return
 	}
 	ch <- mSize
